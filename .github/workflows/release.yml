@@ -1,8 +1,8 @@
 name: Release
 
 # A v* tag publishes:
-#   ghcr.io/useopendesk/opendesk:<tag>  multi-arch (amd64, arm64), API + workers + web
-#   ghcr.io/useopendesk/realtime:<tag>  multi-arch, the gateway
+#   ghcr.io/wladefant/opendesk:<tag>  multi-arch (amd64, arm64), API + workers + web
+#   ghcr.io/wladefant/realtime:<tag>  multi-arch, the gateway
 #   a GitHub release with the installer, its checksum, and the files the
 #   installer fetches (docker-compose.yml, Caddyfile, env.template,
 #   opendesk-ctl) listed in SHA256SUMS, plus images.json with the digests.
@@ -20,7 +20,7 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_PREFIX: ghcr.io/useopendesk
+  IMAGE_PREFIX: ghcr.io/wladefant
 
 jobs:
   validate:
@@ -216,6 +216,7 @@ jobs:
     permissions:
       contents: read
       security-events: write
+      packages: read
     strategy:
       fail-fast: false
       matrix:
@@ -228,6 +229,9 @@ jobs:
           format: sarif
           output: trivy.sarif
           exit-code: "0"
+        env:
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
       - uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
         with:
           sarif_file: trivy.sarif
@@ -260,6 +264,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ needs.validate.outputs.version }}
           PRERELEASE: ${{ needs.validate.outputs.prerelease }}
+          IMAGE_PREFIX: ${{ env.IMAGE_PREFIX }}
         run: |
           flags="--verify-tag --generate-notes --title $TAG"
           [ "$PRERELEASE" = true ] && flags="$flags --prerelease"
@@ -272,12 +277,12 @@ jobs:
 
           Upgrade an existing install: \`/opt/opendesk/opendesk-ctl upgrade $TAG\`
 
-          Images: \`ghcr.io/useopendesk/opendesk:$TAG\`, \`ghcr.io/useopendesk/realtime:$TAG\` (digests in images.json).
+          Images: \`$IMAGE_PREFIX/opendesk:$TAG\`, \`$IMAGE_PREFIX/realtime:$TAG\` (digests in images.json).
           EOF
           # shellcheck disable=SC2086
           gh release create "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --notes-file notes.md $flags
       - name: Publish this installer on opendesk.sh
-        if: needs.validate.outputs.prerelease == 'false'
+        if: false && needs.validate.outputs.prerelease == 'false'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh workflow run deploy.yml --repo "$GITHUB_REPOSITORY" --ref main -f target=site
