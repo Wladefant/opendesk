@@ -73,6 +73,7 @@ jobs:
         with:
           images: ${{ env.IMAGE_PREFIX }}/opendesk
           tags: |
+            type=raw,value=${{ needs.validate.outputs.version }}
             type=semver,pattern=v{{version}}
             type=semver,pattern=v{{major}}.{{minor}},enable=${{ needs.validate.outputs.prerelease == 'false' }}
             type=semver,pattern=v{{major}},enable=${{ needs.validate.outputs.prerelease == 'false' }}
@@ -182,6 +183,7 @@ jobs:
         with:
           images: ${{ env.IMAGE_PREFIX }}/realtime
           tags: |
+            type=raw,value=${{ needs.validate.outputs.version }}
             type=semver,pattern=v{{version}}
             type=semver,pattern=v{{major}}.{{minor}},enable=${{ needs.validate.outputs.prerelease == 'false' }}
             type=semver,pattern=v{{major}},enable=${{ needs.validate.outputs.prerelease == 'false' }}
@@ -202,6 +204,11 @@ jobs:
           TAG: ${{ needs.validate.outputs.version }}
         run: |
           digest=$(docker buildx imagetools inspect "$IMAGE:$TAG" --format '{{json .Manifest}}' | jq -r .digest)
+          echo "Found digest: $digest"
+          if [ -z "$digest" ] || [ "$digest" = "null" ]; then
+            echo "::error::Could not find digest for $IMAGE:$TAG"
+            exit 1
+          fi
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
